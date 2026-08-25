@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katze jagt Hühner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 90%;
+            height: 90%;
+            max-width: 1200px;
+            max-height: 800px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+            border: 3px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .cat {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            font-size: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: none;
+            z-index: 100;
+        }
+        
+        .chicken {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            font-size: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 200;
+        }
+        
+        .confetti {
+            position: absolute;
+            pointer-events: none;
+            font-size: 30px;
+            animation: fall linear forwards;
+            z-index: 150;
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(600px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div class="title">Bewege deine Maus! 🐭</div>
+        <div id="score">Hühner gejagt: 0</div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreDisplay = document.getElementById('score');
+        
+        let score = 0;
+        let chickens = [];
+        let cat = {
+            x: 0,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            element: null
+        };
+        
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        
+        // Katze erstellen
+        function createCat() {
+            const catEl = document.createElement('div');
+            catEl.className = 'cat';
+            catEl.textContent = '🐱';
+            gameContainer.appendChild(catEl);
+            
+            const rect = gameContainer.getBoundingClientRect();
+            cat.x = rect.width / 2;
+            cat.y = rect.height / 2;
+            cat.element = catEl;
+            updateCatPosition();
+        }
+        
+        // Huhn erstellen
+        function createChicken() {
+            const chicken = {
+                element: document.createElement('div'),
+                x: Math.random() * (gameContainer.clientWidth - 40),
+                y: Math.random() * (gameContainer.clientHeight - 40),
+                vx: (Math.random() - 0.5) * 3,
+                vy: (Math.random() - 0.5) * 3,
+                caught: false
+            };
+            
+            chicken.element.className = 'chicken';
+            chicken.element.textContent = '🐔';
+            gameContainer.appendChild(chicken.element);
+            
+            chickens.push(chicken);
+        }
+        
+        // Katzenposition aktualisieren
+        function updateCatPosition() {
+            cat.element.style.left = cat.x + 'px';
+            cat.element.style.top = cat.y + 'px';
+        }
+        
+        // Hühner aktualisieren
+        function updateChickens() {
+            chickens.forEach((chicken, index) => {
+                if (chicken.caught) return;
+                
+                // Hühner bewegen sich zufällig
+                chicken.x += chicken.vx;
+                chicken.y += chicken.vy;
+                
+                // Grenzen prüfen
+                if (chicken.x <= 0 || chicken.x >= gameContainer.clientWidth - 40) {
+                    chicken.vx *= -1;
+                }
+                if (chicken.y <= 0 || chicken.y >= gameContainer.clientHeight - 40) {
+                    chicken.vy *= -1;
+                }
+                
+                chicken.element.style.left = chicken.x + 'px';
+                chicken.element.style.top = chicken.y + 'px';
+                
+                // Kollisionserkennung
+                const distance = Math.hypot(
+                    cat.x - chicken.x,
+                    cat.y - chicken.y
+                );
+                
+                if (distance < 50) {
+                    chicken.caught = true;
+                    chicken.element.remove();
+                    score++;
+                    scoreDisplay.textContent = `Hühner gejagt: ${score}`;
+                    createConfetti(chicken.x, chicken.y);
+                    
+                    // Neues Huhn hinzufügen
+                    setTimeout(() => {
+                        chickens.splice(index, 1);
+                        createChicken();
+                    }, 100);
+                }
+            });
+        }
+        
+        // Konfetti erstellen
+        function createConfetti(x, y) {
+            const confettiPieces = ['🎉', '✨', '🎊', '⭐', '🌟'];
+            
+            for (let i = 0; i < 15; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.textContent = confettiPieces[Math.floor(Math.random() * confettiPieces.length)];
+                confetti.style.left = x + 'px';
+                confetti.style.top = y + 'px';
+                confetti.style.animationDuration = (1 + Math.random()) + 's';
+                confetti.style.animationDelay = (Math.random() * 0.2) + 's';
+                
+                gameContainer.appendChild(confetti);
+                
+                setTimeout(() => confetti.remove(), 2000);
+            }
+        }
+        
+        // Mausverfolgung
+        document.addEventListener('mousemove', (e) => {
+            const rect = gameContainer.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+        
+        // Katze folgt der Maus
+        function updateCat() {
+            const dx = mouseX - cat.x;
+            const dy = mouseY - cat.y;
+            const distance = Math.hypot(dx, dy);
+            
+            if (distance > 5) {
+                const speed = 4;
+                cat.vx = (dx / distance) * speed;
+                cat.vy = (dy / distance) * speed;
+            } else {
+                cat.vx = 0;
+                cat.vy = 0;
+            }
+            
+            cat.x += cat.vx;
+            cat.y += cat.vy;
+            
+            // Grenzen halten
+            cat.x = Math.max(0, Math.min(cat.x, gameContainer.clientWidth - 60));
+            cat.y = Math.max(0, Math.min(cat.y, gameContainer.clientHeight - 60));
+            
+            updateCatPosition();
+        }
+        
+        // Spiel-Loop
+        function gameLoop() {
+            updateCat();
+            updateChickens();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Initialisierung
+        window.addEventListener('load', () => {
+            createCat();
+            createChicken(); // Erstes Huhn
+            gameLoop();
+        });
+    </script>
+</body>
+</html>
