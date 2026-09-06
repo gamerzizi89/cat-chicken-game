@@ -234,14 +234,14 @@
             mouseY = e.clientY - rect.top;
         });
         
-        // Katze folgt der Maus - ULTRA SCHNELL! ⚡⚡⚡
+        // Katze folgt der Maus - SCHNELL! ⚡
         function updateCat() {
             const dx = mouseX - cat.x;
             const dy = mouseY - cat.y;
             const distance = Math.hypot(dx, dy);
             
             if (distance > 5) {
-                const speed = 200; // ULTRA SCHNELL! 200! ⚡⚡⚡
+                const speed = 100; // SCHNELL! 100! ⚡
                 cat.vx = (dx / distance) * speed;
                 cat.vy = (dy / distance) * speed;
             } else {
