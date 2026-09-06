@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Minecraft mit Katzen - WebGL</title>
+    <title>🎮 MINECRAFT 3D FULL GAME 🐱</title>
     <style>
         * {
             margin: 0;
@@ -12,10 +12,10 @@
         }
         
         body {
-            width: 100%;
+            width: 100vw;
             height: 100vh;
             background: #000;
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             overflow: hidden;
         }
         
@@ -25,394 +25,538 @@
             height: 100%;
         }
         
-        #hud {
+        /* HUD */
+        #hotbar {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 5px;
+            gap: 4px;
             z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
         }
         
-        .slot {
-            width: 40px;
-            height: 40px;
-            background: rgba(100, 100, 100, 0.8);
+        .hotbar-slot {
+            width: 45px;
+            height: 45px;
+            background: rgba(100,100,100,0.8);
             border: 2px solid #888;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 24px;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 3px;
+            transition: all 0.1s;
         }
         
-        .slot.active {
-            border: 2px solid #0f0;
-            background: rgba(150, 150, 150, 0.9);
-            box-shadow: 0 0 10px #0f0;
+        .hotbar-slot.active {
+            border: 3px solid #00ff00;
+            background: rgba(150,150,150,0.95);
+            box-shadow: 0 0 15px rgba(0,255,0,0.8);
+            transform: scale(1.1);
         }
         
+        .hotbar-slot:hover {
+            background: rgba(120,120,120,0.9);
+        }
+        
+        /* Inventar */
         #inventory {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(50, 50, 50, 0.95);
-            border: 2px solid #888;
-            padding: 20px;
-            border-radius: 10px;
+            background: rgba(30,30,30,0.98);
+            border: 3px solid #8b7355;
+            padding: 25px;
+            border-radius: 5px;
             display: none;
             z-index: 200;
-            width: 300px;
-            max-height: 400px;
+            width: 360px;
+            max-height: 500px;
             overflow-y: auto;
+            box-shadow: 0 0 40px rgba(0,0,0,0.9);
         }
         
         #inventory.show {
             display: block;
         }
         
-        .inventory-item {
-            background: rgba(80, 80, 80, 0.9);
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
+        #inventory h2 {
             color: #fff;
-            cursor: pointer;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 20px;
         }
         
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 3px;
+            margin-bottom: 15px;
+        }
+        
+        .inventory-slot {
+            width: 35px;
+            height: 35px;
+            background: rgba(80,80,80,0.9);
+            border: 1px solid #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.1s;
+        }
+        
+        .inventory-slot:hover {
+            background: rgba(100,100,100,0.9);
+            border: 1px solid #777;
+        }
+        
+        /* Info Panel */
         #info {
             position: absolute;
             top: 20px;
             left: 20px;
             color: #fff;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 5px;
             font-size: 12px;
             z-index: 100;
+            border: 2px solid #8b7355;
         }
         
+        #info h3 {
+            color: #0f0;
+            margin-bottom: 8px;
+        }
+        
+        #info p {
+            margin: 3px 0;
+        }
+        
+        /* Crosshair */
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            border: 2px solid #fff;
-            border-radius: 50%;
+            width: 24px;
+            height: 24px;
             pointer-events: none;
             z-index: 50;
+        }
+        
+        .crosshair-line {
+            position: absolute;
+            background: rgba(255,255,255,0.8);
+        }
+        
+        .crosshair-h {
+            width: 12px;
+            height: 1px;
+            top: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .crosshair-v {
+            width: 1px;
+            height: 12px;
+            left: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* Mobile Controls */
+        #mobileControls {
+            display: none;
+            position: absolute;
+            bottom: 120px;
+            left: 20px;
+            z-index: 100;
+        }
+        
+        .control-button {
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            background: rgba(100,100,100,0.8);
+            border: 2px solid #666;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            transition: all 0.1s;
+        }
+        
+        .control-button:active {
+            background: rgba(150,150,150,0.9);
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        
+        @media (max-width: 768px) {
+            #mobileControls {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
     </style>
 </head>
 <body>
-    <div id="crosshair"></div>
+    <!-- Crosshair -->
+    <div id="crosshair">
+        <div class="crosshair-line crosshair-h"></div>
+        <div class="crosshair-line crosshair-v"></div>
+    </div>
+    
+    <!-- Info Panel -->
     <div id="info">
-        <h3 style="color: #0f0; margin-bottom: 10px;">🐱 MINECRAFT 3D 🐱</h3>
-        <p>WASD - Bewegen | SPACE - Springen</p>
-        <p>Maus - Schauen | E - Inventar</p>
-        <p>Klick - Platzieren/Abbau</p>
-        <p id="coords">Position: 0, 0, 0</p>
+        <h3>⛏️ MINECRAFT 3D 🐱</h3>
+        <p><strong>WASD</strong> - Bewegen</p>
+        <p><strong>SPACE</strong> - Springen</p>
+        <p><strong>E</strong> - Inventar</p>
+        <p><strong>Maus</strong> - Schauen</p>
+        <p><strong>Klick</strong> - Blöcke ändern</p>
+        <p id="coords">X: 0 Y: 0 Z: 0</p>
+        <p id="blockInfo">Blöcke: 0</p>
     </div>
-    <div id="hud"></div>
+    
+    <!-- Hotbar (Schnellzugriff) -->
+    <div id="hotbar"></div>
+    
+    <!-- Inventar -->
     <div id="inventory">
-        <h3 style="color: #0f0; margin-bottom: 10px;">Inventar</h3>
-        <div id="inventoryList"></div>
+        <h2>Inventar</h2>
+        <div class="inventory-grid" id="inventoryGrid"></div>
     </div>
+    
+    <!-- Mobile Controls -->
+    <div id="mobileControls">
+        <button class="control-button" id="btnW">⬆️</button>
+        <button class="control-button" id="btnA">⬅️</button>
+        <button class="control-button" id="btnS">⬇️</button>
+        <button class="control-button" id="btnD">➡️</button>
+        <button class="control-button" id="btnSpace">🚀</button>
+    </div>
+    
+    <!-- Canvas -->
     <canvas id="canvas"></canvas>
 
     <script>
-        // 3D Minecraft mit WebGL und echtem 3D
+        // ==================== MINECRAFT 3D ENGINE ====================
+        
         const canvas = document.getElementById('canvas');
-        const gl = canvas.getContext('webgl2');
+        const gl = canvas.getContext('webgl2', { antialias: true, alpha: false });
+        
+        if (!gl) {
+            alert('WebGL2 nicht unterstützt!');
+        }
         
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         
-        if (!gl) {
-            alert('WebGL2 wird nicht unterstützt!');
-        }
-        
         gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.clearColor(0.53, 0.81, 0.92, 1.0); // Himmelblau
+        gl.clearColor(0.53, 0.81, 0.92, 1.0); // Himmel
         gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
         
-        // Vertex Shader
-        const vertexShaderSource = `#version 300 es
+        // ==================== SHADER ====================
+        const vertexShader = `#version 300 es
             in vec3 position;
             in vec3 color;
+            in vec3 normal;
             
             uniform mat4 projection;
             uniform mat4 view;
             uniform mat4 model;
             
             out vec3 fragColor;
+            out vec3 fragNormal;
             
             void main() {
                 gl_Position = projection * view * model * vec4(position, 1.0);
                 fragColor = color;
+                fragNormal = normal;
             }
         `;
         
-        // Fragment Shader
-        const fragmentShaderSource = `#version 300 es
+        const fragmentShader = `#version 300 es
             precision highp float;
             
             in vec3 fragColor;
+            in vec3 fragNormal;
             out vec4 outColor;
             
             void main() {
-                outColor = vec4(fragColor, 1.0);
+                vec3 lightDir = normalize(vec3(1.0, 2.0, 1.0));
+                float brightness = max(dot(fragNormal, lightDir), 0.3);
+                outColor = vec4(fragColor * brightness, 1.0);
             }
         `;
         
-        // Shader kompilieren
         function compileShader(source, type) {
             const shader = gl.createShader(type);
             gl.shaderSource(shader, source);
             gl.compileShader(shader);
             if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error('Shader-Fehler:', gl.getShaderInfoLog(shader));
+                console.error('Shader error:', gl.getShaderInfoLog(shader));
             }
             return shader;
         }
         
-        const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
-        const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
-        
         const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
+        gl.attachShader(program, compileShader(vertexShader, gl.VERTEX_SHADER));
+        gl.attachShader(program, compileShader(fragmentShader, gl.FRAGMENT_SHADER));
         gl.linkProgram(program);
         gl.useProgram(program);
         
-        // Matrix-Funktionen
+        // ==================== MATRIX FUNCTIONS ====================
         function mat4Identity() {
-            return [
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1
-            ];
+            return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+        }
+        
+        function mat4Translate(m, x, y, z) {
+            const r = m.slice();
+            r[12] = x;
+            r[13] = y;
+            r[14] = z;
+            return r;
         }
         
         function mat4Perspective(fov, aspect, near, far) {
-            const f = 1.0 / Math.tan(fov / 2);
-            const nf = 1 / (near - far);
+            const f = 1/Math.tan(fov/2);
+            const nf = 1/(near-far);
             return [
                 f/aspect, 0, 0, 0,
                 0, f, 0, 0,
                 0, 0, (far+near)*nf, -1,
-                0, 0, (2*far*near)*nf, 0
+                0, 0, 2*far*near*nf, 0
             ];
         }
         
         function mat4LookAt(eye, center, up) {
-            const f = normalize(subtract(center, eye));
+            const f = normalize(sub(center, eye));
             const s = normalize(cross(f, up));
             const u = cross(s, f);
-            
             return [
                 s[0], u[0], -f[0], 0,
                 s[1], u[1], -f[1], 0,
                 s[2], u[2], -f[2], 0,
-                -dot(s, eye), -dot(u, eye), dot(f, eye), 1
+                -dot(s,eye), -dot(u,eye), dot(f,eye), 1
             ];
         }
         
         function normalize(v) {
-            const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+            const len = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
             return [v[0]/len, v[1]/len, v[2]/len];
         }
         
-        function subtract(a, b) {
-            return [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
-        }
+        function sub(a,b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+        function cross(a,b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+        function dot(a,b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
         
-        function cross(a, b) {
-            return [
-                a[1]*b[2] - a[2]*b[1],
-                a[2]*b[0] - a[0]*b[2],
-                a[0]*b[1] - a[1]*b[0]
-            ];
-        }
+        // ==================== BLOCK TYPES ====================
+        const blockTypes = {
+            'grass': { color: [0.2, 0.8, 0.1], emoji: '🌿' },
+            'dirt': { color: [0.6, 0.4, 0.2], emoji: '🟫' },
+            'stone': { color: [0.5, 0.5, 0.5], emoji: '⬜' },
+            'wood': { color: [0.5, 0.3, 0.1], emoji: '🪵' },
+            'leaves': { color: [0.1, 0.7, 0.2], emoji: '🍃' },
+            'bedrock': { color: [0.2, 0.2, 0.2], emoji: '⚫' },
+            'sand': { color: [0.9, 0.8, 0.3], emoji: '🟨' }
+        };
         
-        function dot(a, b) {
-            return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
-        }
-        
-        // Spieler
+        // ==================== PLAYER ====================
         const player = {
-            x: 0,
-            y: 5,
-            z: 0,
-            yaw: 0,
-            pitch: 0,
+            x: 0, y: 100, z: 0,
+            yaw: 0, pitch: 0,
             vy: 0,
             onGround: false,
             inventory: [],
             selectedSlot: 0
         };
         
-        // Item-Typen
-        const itemTypes = {
-            'grass': { emoji: '🌿', color: [0.1, 0.7, 0.2] },
-            'dirt': { emoji: '🟫', color: [0.6, 0.4, 0.2] },
-            'wood': { emoji: '🪵', color: [0.5, 0.35, 0.1] },
-            'stone': { emoji: '⬜', color: [0.5, 0.5, 0.5] },
-            'cat': { emoji: '🐱', color: [1.0, 0.6, 0.0] }
-        };
-        
         // Inventar initialisieren
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < 27; i++) {
             player.inventory.push({ type: null, count: 0 });
         }
         player.inventory[0] = { type: 'dirt', count: 64 };
-        player.inventory[1] = { type: 'grass', count: 32 };
+        player.inventory[1] = { type: 'grass', count: 64 };
         player.inventory[2] = { type: 'wood', count: 64 };
+        player.inventory[3] = { type: 'leaves', count: 32 };
+        player.inventory[4] = { type: 'stone', count: 64 };
+        player.inventory[5] = { type: 'sand', count: 32 };
         
-        // HUD aktualisieren
-        function updateHUD() {
-            const hud = document.getElementById('hud');
-            hud.innerHTML = '';
-            for (let i = 0; i < player.inventory.length; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'slot' + (i === player.selectedSlot ? ' active' : '');
-                if (player.inventory[i].type && itemTypes[player.inventory[i].type]) {
-                    slot.innerHTML = itemTypes[player.inventory[i].type].emoji + '<br><small>' + player.inventory[i].count + '</small>';
-                }
-                slot.onclick = () => {
-                    player.selectedSlot = i;
-                    updateHUD();
-                };
-                hud.appendChild(slot);
-            }
+        // ==================== CUBE GEOMETRY ====================
+        function createCube(x, y, z, type) {
+            const color = blockTypes[type]?.color || [0.5, 0.5, 0.5];
+            const vertices = [
+                x-0.5, y-0.5, z+0.5, x+0.5, y-0.5, z+0.5, x+0.5, y+0.5, z+0.5, x-0.5, y+0.5, z+0.5,
+                x-0.5, y-0.5, z-0.5, x+0.5, y-0.5, z-0.5, x+0.5, y+0.5, z-0.5, x-0.5, y+0.5, z-0.5,
+            ];
+            
+            const colors = new Array(36).fill(0).flatMap(() => color);
+            
+            const normals = [
+                0,0,1, 0,0,1, 0,0,1, 0,0,1,
+                0,0,-1, 0,0,-1, 0,0,-1, 0,0,-1,
+                0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0,
+                0,1,0, 0,1,0, 0,1,0, 0,1,0,
+                1,0,0, 1,0,0, 1,0,0, 1,0,0,
+                -1,0,0, -1,0,0, -1,0,0, -1,0,0
+            ];
+            
+            const indices = [
+                0,1,2, 0,2,3, 4,6,5, 4,7,6,
+                4,5,1, 4,1,0, 3,2,6, 3,6,7,
+                5,6,2, 5,2,1, 4,0,3, 4,3,7
+            ];
+            
+            return { vertices, colors, normals, indices };
         }
         
-        // Inventar-UI
-        const inventoryDiv = document.getElementById('inventory');
-        document.addEventListener('keypress', (e) => {
-            if (e.key === 'e' || e.key === 'E') {
-                inventoryDiv.classList.toggle('show');
-            }
-        });
-        
-        function updateInventoryUI() {
-            const list = document.getElementById('inventoryList');
-            list.innerHTML = '';
-            player.inventory.forEach((item, i) => {
-                if (item.type) {
-                    const div = document.createElement('div');
-                    div.className = 'inventory-item';
-                    div.innerHTML = itemTypes[item.type].emoji + ' ' + item.type + ' x' + item.count;
-                    list.appendChild(div);
-                }
-            });
-        }
-        
-        // Blöcke
+        // ==================== TERRAIN GENERATION ====================
         let blocks = [];
         
         function generateTerrain() {
-            for (let x = -20; x < 20; x++) {
-                for (let z = -20; z < 20; z++) {
-                    // Boden
-                    blocks.push({
-                        x: x,
-                        y: 0,
-                        z: z,
-                        type: 'dirt'
-                    });
-                    
-                    // Gras
-                    if (Math.random() > 0.7) {
-                        blocks.push({
-                            x: x,
-                            y: 1,
-                            z: z,
-                            type: 'grass'
-                        });
+            const size = 40;
+            
+            // Bedrock (Y=0)
+            for (let x = -size; x < size; x++) {
+                for (let z = -size; z < size; z++) {
+                    blocks.push({ x, y: 0, z, type: 'bedrock' });
+                }
+            }
+            
+            // Stone Layer (Y=1-50)
+            for (let x = -size; x < size; x++) {
+                for (let z = -size; z < size; z++) {
+                    for (let y = 1; y < 50; y++) {
+                        blocks.push({ x, y, z, type: 'stone' });
                     }
-                    
-                    // Bäume
-                    if (Math.random() > 0.95) {
-                        for (let i = 0; i < 4; i++) {
-                            blocks.push({
-                                x: x,
-                                y: 2 + i,
-                                z: z,
-                                type: 'wood'
-                            });
+                }
+            }
+            
+            // Dirt & Grass (Y=50-55)
+            for (let x = -size; x < size; x++) {
+                for (let z = -size; z < size; z++) {
+                    for (let y = 50; y < 55; y++) {
+                        blocks.push({ x, y, z, type: 'dirt' });
+                    }
+                    blocks.push({ x, y: 55, z, type: 'grass' });
+                }
+            }
+            
+            // BÄUME!!
+            for (let x = -size; x < size; x += 5) {
+                for (let z = -size; z < size; z += 5) {
+                    if (Math.random() > 0.5) {
+                        // Baumstamm
+                        for (let y = 56; y < 64; y++) {
+                            blocks.push({ x, y, z, type: 'wood' });
+                        }
+                        
+                        // Baumkrone (Laub)
+                        for (let dx = -3; dx <= 3; dx++) {
+                            for (let dz = -3; dz <= 3; dz++) {
+                                for (let dy = -3; dy <= 3; dy++) {
+                                    if (dx*dx + dz*dz + dy*dy < 9) {
+                                        blocks.push({ x: x+dx, y: 64+dy, z: z+dz, type: 'leaves' });
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+            
+            // Wasser & Sand
+            for (let x = -size; x < size; x++) {
+                for (let z = -size; z < size; z++) {
+                    if (Math.random() > 0.8) {
+                        blocks.push({ x, y: 54, z, type: 'sand' });
+                    }
+                }
+            }
         }
         
-        // Würfel zeichnen
-        function createCube() {
-            const vertices = [
-                // Vorne
-                -0.5, -0.5, 0.5,
-                0.5, -0.5, 0.5,
-                0.5, 0.5, 0.5,
-                -0.5, 0.5, 0.5,
-                // Hinten
-                -0.5, -0.5, -0.5,
-                0.5, -0.5, -0.5,
-                0.5, 0.5, -0.5,
-                -0.5, 0.5, -0.5,
-            ];
-            
-            const colors = [
-                // Vorne - Grün
-                0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
-                // Hinten - Rot
-                1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
-                // Oben - Blau
-                0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
-                // Unten - Gelb
-                1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-                // Rechts - Cyan
-                0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-                // Links - Magenta
-                1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-            ];
-            
-            const indices = [
-                0, 1, 2, 0, 2, 3, // Vorne
-                4, 6, 5, 4, 7, 6, // Hinten
-                4, 5, 1, 4, 1, 0, // Unten
-                3, 2, 6, 3, 6, 7, // Oben
-                5, 6, 2, 5, 2, 1, // Rechts
-                4, 0, 3, 4, 3, 7  // Links
-            ];
-            
-            return { vertices, colors, indices };
+        // ==================== RENDERING ====================
+        let cubeBuffers = [];
+        
+        function buildGeometry() {
+            cubeBuffers = blocks.map(block => createCube(block.x, block.y, block.z, block.type));
         }
         
-        const cubeData = createCube();
+        function render() {
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            
+            updatePlayer();
+            
+            const projection = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 500);
+            
+            const eye = [player.x, player.y, player.z];
+            const forward = [Math.sin(player.yaw), Math.tan(player.pitch), Math.cos(player.yaw)];
+            const center = [eye[0]+forward[0], eye[1]+forward[1], eye[2]+forward[2]];
+            const up = [0, 1, 0];
+            const view = mat4LookAt(eye, center, up);
+            
+            const posLoc = gl.getAttribLocation(program, 'position');
+            const colorLoc = gl.getAttribLocation(program, 'color');
+            const normalLoc = gl.getAttribLocation(program, 'normal');
+            const projLoc = gl.getUniformLocation(program, 'projection');
+            const viewLoc = gl.getUniformLocation(program, 'view');
+            const modelLoc = gl.getUniformLocation(program, 'model');
+            
+            gl.uniformMatrix4fv(projLoc, false, projection);
+            gl.uniformMatrix4fv(viewLoc, false, view);
+            
+            cubeBuffers.forEach(cube => {
+                const posBuf = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.vertices), gl.STATIC_DRAW);
+                gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(posLoc);
+                
+                const colorBuf = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, colorBuf);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.colors), gl.STATIC_DRAW);
+                gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(colorLoc);
+                
+                const normalBuf = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuf);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.normals), gl.STATIC_DRAW);
+                gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(normalLoc);
+                
+                const indexBuf = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuf);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cube.indices), gl.STATIC_DRAW);
+                
+                gl.uniformMatrix4fv(modelLoc, false, mat4Identity());
+                gl.drawElements(gl.TRIANGLES, cube.indices.length, gl.UNSIGNED_SHORT, 0);
+            });
+            
+            requestAnimationFrame(render);
+        }
         
-        const positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeData.vertices), gl.STATIC_DRAW);
-        
-        const colorBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeData.colors), gl.STATIC_DRAW);
-        
-        const indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeData.indices), gl.STATIC_DRAW);
-        
-        // Input
+        // ==================== INPUT ====================
         const keys = {};
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
+            if (e.key === 'e' || e.key === 'E') {
+                document.getElementById('inventory').classList.toggle('show');
+            }
         });
         window.addEventListener('keyup', (e) => {
             keys[e.key.toLowerCase()] = false;
@@ -426,108 +570,70 @@
             }
         });
         
-        canvas.addEventListener('click', () => {
-            canvas.requestPointerLock();
-        });
+        canvas.addEventListener('click', () => canvas.requestPointerLock());
         
-        // Spieler-Bewegung
+        // ==================== PLAYER MOVEMENT ====================
         function updatePlayer() {
-            const speed = 0.2;
+            const speed = 0.3;
             const forward = [Math.sin(player.yaw), 0, Math.cos(player.yaw)];
             const right = [Math.cos(player.yaw), 0, -Math.sin(player.yaw)];
             
-            if (keys['w']) {
-                player.x += forward[0] * speed;
-                player.z += forward[2] * speed;
-            }
-            if (keys['s']) {
-                player.x -= forward[0] * speed;
-                player.z -= forward[2] * speed;
-            }
-            if (keys['a']) {
-                player.x -= right[0] * speed;
-                player.z -= right[2] * speed;
-            }
-            if (keys['d']) {
-                player.x += right[0] * speed;
-                player.z += right[2] * speed;
-            }
+            if (keys['w']) { player.x += forward[0]*speed; player.z += forward[2]*speed; }
+            if (keys['s']) { player.x -= forward[0]*speed; player.z -= forward[2]*speed; }
+            if (keys['a']) { player.x -= right[0]*speed; player.z -= right[2]*speed; }
+            if (keys['d']) { player.x += right[0]*speed; player.z += right[2]*speed; }
             
             if (keys[' '] && player.onGround) {
-                player.vy = 0.3;
+                player.vy = 0.5;
                 player.onGround = false;
             }
             
-            player.vy -= 0.02;
+            player.vy -= 0.05;
             player.y += player.vy;
             
-            if (player.y < 2) {
-                player.y = 2;
+            if (player.y < 70) {
+                player.y = 70;
                 player.vy = 0;
                 player.onGround = true;
             }
             
-            // Koordinaten aktualisieren
-            document.getElementById('coords').textContent = 
-                `Position: ${Math.round(player.x)}, ${Math.round(player.y)}, ${Math.round(player.z)}`;
+            document.getElementById('coords').textContent = `X: ${Math.round(player.x)} Y: ${Math.round(player.y)} Z: ${Math.round(player.z)}`;
+            document.getElementById('blockInfo').textContent = `Blöcke: ${blocks.length}`;
         }
         
-        // Rendering
-        function render() {
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            
-            updatePlayer();
-            updateInventoryUI();
-            
-            // Matrizen
-            const projection = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
-            
-            const eye = [player.x, player.y, player.z];
-            const forward = [Math.sin(player.yaw), Math.tan(player.pitch), Math.cos(player.yaw)];
-            const center = [
-                eye[0] + forward[0],
-                eye[1] + forward[1],
-                eye[2] + forward[2]
-            ];
-            const up = [0, 1, 0];
-            const view = mat4LookAt(eye, center, up);
-            
-            // Blöcke zeichnen
-            blocks.forEach(block => {
-                const model = mat4Identity();
-                model[12] = block.x;
-                model[13] = block.y;
-                model[14] = block.z;
-                
-                const posLocation = gl.getAttribLocation(program, 'position');
-                const colorLocation = gl.getAttribLocation(program, 'color');
-                
-                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-                gl.vertexAttribPointer(posLocation, 3, gl.FLOAT, false, 0, 0);
-                gl.enableVertexAttribArray(posLocation);
-                
-                gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-                gl.vertexAttribPointer(colorLocation, 3, gl.FLOAT, false, 0, 0);
-                gl.enableVertexAttribArray(colorLocation);
-                
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-                
-                const projLoc = gl.getUniformLocation(program, 'projection');
-                const viewLoc = gl.getUniformLocation(program, 'view');
-                const modelLoc = gl.getUniformLocation(program, 'model');
-                
-                gl.uniformMatrix4fv(projLoc, false, projection);
-                gl.uniformMatrix4fv(viewLoc, false, view);
-                gl.uniformMatrix4fv(modelLoc, false, model);
-                
-                gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+        // ==================== UI ====================
+        function updateHotbar() {
+            const hotbar = document.getElementById('hotbar');
+            hotbar.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'hotbar-slot' + (i === player.selectedSlot ? ' active' : '');
+                if (player.inventory[i].type) {
+                    slot.innerHTML = blockTypes[player.inventory[i].type]?.emoji + '<br><small>' + player.inventory[i].count + '</small>';
+                }
+                slot.onclick = () => { player.selectedSlot = i; updateHotbar(); };
+                hotbar.appendChild(slot);
+            }
+        }
+        
+        function updateInventory() {
+            const grid = document.getElementById('inventoryGrid');
+            grid.innerHTML = '';
+            player.inventory.forEach((item, i) => {
+                const slot = document.createElement('div');
+                slot.className = 'inventory-slot';
+                if (item.type) {
+                    slot.innerHTML = blockTypes[item.type]?.emoji;
+                }
+                grid.appendChild(slot);
             });
-            
-            requestAnimationFrame(render);
         }
         
+        // ==================== INIT ====================
         generateTerrain();
-        updateHUD();
+        buildGeometry();
+        updateHotbar();
+        updateInventory();
         render();
         
         window.addEventListener('resize', () => {
