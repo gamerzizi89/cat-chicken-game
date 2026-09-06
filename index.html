@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Minecraft mit Katzen-Mobs</title>
+    <title>3D Minecraft mit Katzen - WebGL</title>
     <style>
         * {
             margin: 0;
@@ -15,16 +15,72 @@
             width: 100%;
             height: 100vh;
             background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             font-family: Arial, sans-serif;
             overflow: hidden;
         }
         
         #canvas {
             display: block;
-            background: #87CEEB;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            z-index: 100;
+        }
+        
+        .slot {
+            width: 40px;
+            height: 40px;
+            background: rgba(100, 100, 100, 0.8);
+            border: 2px solid #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .slot.active {
+            border: 2px solid #0f0;
+            background: rgba(150, 150, 150, 0.9);
+            box-shadow: 0 0 10px #0f0;
+        }
+        
+        #inventory {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(50, 50, 50, 0.95);
+            border: 2px solid #888;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 200;
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        #inventory.show {
+            display: block;
+        }
+        
+        .inventory-item {
+            background: rgba(80, 80, 80, 0.9);
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
         }
         
         #info {
@@ -33,164 +89,251 @@
             left: 20px;
             color: #fff;
             background: rgba(0,0,0,0.7);
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 14px;
-            z-index: 100;
-        }
-        
-        #info h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-            color: #00ff00;
-        }
-        
-        #stats {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: #fff;
-            background: rgba(0,0,0,0.7);
             padding: 15px;
             border-radius: 10px;
             font-size: 12px;
             z-index: 100;
         }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 50;
+        }
     </style>
 </head>
 <body>
+    <div id="crosshair"></div>
     <div id="info">
-        <h1>🐱 MINECRAFT MIT KATZEN-MOBS 🐱</h1>
-        <p>WASD - Bewegen</p>
-        <p>SPACE - Springen</p>
-        <p>Maus - Schauen</p>
-        <p>Klick - Blöcke platzieren/entfernen</p>
+        <h3 style="color: #0f0; margin-bottom: 10px;">🐱 MINECRAFT 3D 🐱</h3>
+        <p>WASD - Bewegen | SPACE - Springen</p>
+        <p>Maus - Schauen | E - Inventar</p>
+        <p>Klick - Platzieren/Abbau</p>
+        <p id="coords">Position: 0, 0, 0</p>
     </div>
-    <div id="stats">
-        <p>Katzen-Mobs: <span id="catCount">0</span></p>
-        <p>Blöcke: <span id="blockCount">0</span></p>
+    <div id="hud"></div>
+    <div id="inventory">
+        <h3 style="color: #0f0; margin-bottom: 10px;">Inventar</h3>
+        <div id="inventoryList"></div>
     </div>
     <canvas id="canvas"></canvas>
 
     <script>
-        // 3D Minecraft mit Katzen-Mobs
+        // 3D Minecraft mit WebGL und echtem 3D
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const gl = canvas.getContext('webgl2');
         
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         
+        if (!gl) {
+            alert('WebGL2 wird nicht unterstützt!');
+        }
+        
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clearColor(0.53, 0.81, 0.92, 1.0); // Himmelblau
+        gl.enable(gl.DEPTH_TEST);
+        
+        // Vertex Shader
+        const vertexShaderSource = `#version 300 es
+            in vec3 position;
+            in vec3 color;
+            
+            uniform mat4 projection;
+            uniform mat4 view;
+            uniform mat4 model;
+            
+            out vec3 fragColor;
+            
+            void main() {
+                gl_Position = projection * view * model * vec4(position, 1.0);
+                fragColor = color;
+            }
+        `;
+        
+        // Fragment Shader
+        const fragmentShaderSource = `#version 300 es
+            precision highp float;
+            
+            in vec3 fragColor;
+            out vec4 outColor;
+            
+            void main() {
+                outColor = vec4(fragColor, 1.0);
+            }
+        `;
+        
+        // Shader kompilieren
+        function compileShader(source, type) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader-Fehler:', gl.getShaderInfoLog(shader));
+            }
+            return shader;
+        }
+        
+        const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
+        const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
+        
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+        
+        // Matrix-Funktionen
+        function mat4Identity() {
+            return [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1
+            ];
+        }
+        
+        function mat4Perspective(fov, aspect, near, far) {
+            const f = 1.0 / Math.tan(fov / 2);
+            const nf = 1 / (near - far);
+            return [
+                f/aspect, 0, 0, 0,
+                0, f, 0, 0,
+                0, 0, (far+near)*nf, -1,
+                0, 0, (2*far*near)*nf, 0
+            ];
+        }
+        
+        function mat4LookAt(eye, center, up) {
+            const f = normalize(subtract(center, eye));
+            const s = normalize(cross(f, up));
+            const u = cross(s, f);
+            
+            return [
+                s[0], u[0], -f[0], 0,
+                s[1], u[1], -f[1], 0,
+                s[2], u[2], -f[2], 0,
+                -dot(s, eye), -dot(u, eye), dot(f, eye), 1
+            ];
+        }
+        
+        function normalize(v) {
+            const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+            return [v[0]/len, v[1]/len, v[2]/len];
+        }
+        
+        function subtract(a, b) {
+            return [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+        }
+        
+        function cross(a, b) {
+            return [
+                a[1]*b[2] - a[2]*b[1],
+                a[2]*b[0] - a[0]*b[2],
+                a[0]*b[1] - a[1]*b[0]
+            ];
+        }
+        
+        function dot(a, b) {
+            return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+        }
+        
         // Spieler
         const player = {
-            x: 50,
-            y: 50,
-            z: 50,
+            x: 0,
+            y: 5,
+            z: 0,
             yaw: 0,
             pitch: 0,
-            vx: 0,
             vy: 0,
-            vz: 0,
-            onGround: false
+            onGround: false,
+            inventory: [],
+            selectedSlot: 0
         };
         
-        // Welt - Blöcke
-        let blocks = [];
-        let catMobs = [];
+        // Item-Typen
+        const itemTypes = {
+            'grass': { emoji: '🌿', color: [0.1, 0.7, 0.2] },
+            'dirt': { emoji: '🟫', color: [0.6, 0.4, 0.2] },
+            'wood': { emoji: '🪵', color: [0.5, 0.35, 0.1] },
+            'stone': { emoji: '⬜', color: [0.5, 0.5, 0.5] },
+            'cat': { emoji: '🐱', color: [1.0, 0.6, 0.0] }
+        };
         
-        // Katzen-Mob Klasse
-        class CatMob {
-            constructor(x, y, z) {
-                this.x = x;
-                this.y = y;
-                this.z = z;
-                this.vx = (Math.random() - 0.5) * 0.3;
-                this.vz = (Math.random() - 0.5) * 0.3;
-                this.vy = 0;
-                this.onGround = false;
-                this.walkCounter = 0;
-                this.direction = Math.random() * Math.PI * 2;
-            }
-            
-            update() {
-                // Bewegung
-                this.walkCounter++;
-                if (this.walkCounter > 60) {
-                    this.direction = Math.random() * Math.PI * 2;
-                    this.walkCounter = 0;
+        // Inventar initialisieren
+        for (let i = 0; i < 9; i++) {
+            player.inventory.push({ type: null, count: 0 });
+        }
+        player.inventory[0] = { type: 'dirt', count: 64 };
+        player.inventory[1] = { type: 'grass', count: 32 };
+        player.inventory[2] = { type: 'wood', count: 64 };
+        
+        // HUD aktualisieren
+        function updateHUD() {
+            const hud = document.getElementById('hud');
+            hud.innerHTML = '';
+            for (let i = 0; i < player.inventory.length; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'slot' + (i === player.selectedSlot ? ' active' : '');
+                if (player.inventory[i].type && itemTypes[player.inventory[i].type]) {
+                    slot.innerHTML = itemTypes[player.inventory[i].type].emoji + '<br><small>' + player.inventory[i].count + '</small>';
                 }
-                
-                this.vx = Math.cos(this.direction) * 0.2;
-                this.vz = Math.sin(this.direction) * 0.2;
-                
-                // Position aktualisieren
-                this.x += this.vx;
-                this.z += this.vz;
-                
-                // Gravitation
-                this.vy -= 0.05;
-                this.y += this.vy;
-                
-                // Bodenerkennung
-                if (this.y <= 22) {
-                    this.y = 22;
-                    this.vy = 0;
-                    this.onGround = true;
-                }
-                
-                // Grenzen
-                if (this.x < 0) this.x = 100;
-                if (this.x > 100) this.x = 0;
-                if (this.z < 0) this.z = 100;
-                if (this.z > 100) this.z = 0;
-                
-                // Manchmal springen
-                if (Math.random() > 0.95 && this.onGround) {
-                    this.vy = 1;
-                    this.onGround = false;
-                }
-            }
-            
-            draw(ctx, centerX, centerY) {
-                // Isometrische Projektion
-                const scale = 1;
-                const ix = (this.x - this.z) * scale;
-                const iy = (this.y - (this.x + this.z) * 0.5) * scale;
-                
-                const screenX = centerX + ix;
-                const screenY = centerY + iy;
-                
-                // Katze zeichnen
-                ctx.font = 'bold 30px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                
-                // Schatten
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.fillRect(screenX - 15, screenY + 15, 30, 5);
-                
-                // Katze
-                ctx.fillText('🐱', screenX, screenY);
+                slot.onclick = () => {
+                    player.selectedSlot = i;
+                    updateHUD();
+                };
+                hud.appendChild(slot);
             }
         }
         
-        // Terrain generieren
+        // Inventar-UI
+        const inventoryDiv = document.getElementById('inventory');
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'e' || e.key === 'E') {
+                inventoryDiv.classList.toggle('show');
+            }
+        });
+        
+        function updateInventoryUI() {
+            const list = document.getElementById('inventoryList');
+            list.innerHTML = '';
+            player.inventory.forEach((item, i) => {
+                if (item.type) {
+                    const div = document.createElement('div');
+                    div.className = 'inventory-item';
+                    div.innerHTML = itemTypes[item.type].emoji + ' ' + item.type + ' x' + item.count;
+                    list.appendChild(div);
+                }
+            });
+        }
+        
+        // Blöcke
+        let blocks = [];
+        
         function generateTerrain() {
-            for (let x = 0; x < 50; x++) {
-                for (let z = 0; z < 50; z++) {
+            for (let x = -20; x < 20; x++) {
+                for (let z = -20; z < 20; z++) {
                     // Boden
                     blocks.push({
-                        x: x * 2,
-                        y: 20,
-                        z: z * 2,
+                        x: x,
+                        y: 0,
+                        z: z,
                         type: 'dirt'
                     });
                     
                     // Gras
-                    if (Math.random() > 0.8) {
+                    if (Math.random() > 0.7) {
                         blocks.push({
-                            x: x * 2,
-                            y: 22,
-                            z: z * 2,
+                            x: x,
+                            y: 1,
+                            z: z,
                             type: 'grass'
                         });
                     }
@@ -199,80 +342,72 @@
                     if (Math.random() > 0.95) {
                         for (let i = 0; i < 4; i++) {
                             blocks.push({
-                                x: x * 2,
-                                y: 22 + i * 2,
-                                z: z * 2,
+                                x: x,
+                                y: 2 + i,
+                                z: z,
                                 type: 'wood'
                             });
-                        }
-                        for (let bx = -2; bx <= 2; bx++) {
-                            for (let bz = -2; bz <= 2; bz++) {
-                                for (let by = 0; by < 3; by++) {
-                                    blocks.push({
-                                        x: x * 2 + bx * 2,
-                                        y: 26 + by * 2,
-                                        z: z * 2 + bz * 2,
-                                        type: 'leaves'
-                                    });
-                                }
-                            }
                         }
                     }
                 }
             }
-            
-            // Katzen-Mobs spawnen
-            for (let i = 0; i < 5; i++) {
-                catMobs.push(new CatMob(
-                    Math.random() * 100,
-                    25,
-                    Math.random() * 100
-                ));
-            }
         }
         
-        // Block zeichnen
-        function drawBlock(x, y, z, type) {
-            const scale = 1;
-            const ix = (x - z) * scale;
-            const iy = (y - (x + z) * 0.5) * scale;
+        // Würfel zeichnen
+        function createCube() {
+            const vertices = [
+                // Vorne
+                -0.5, -0.5, 0.5,
+                0.5, -0.5, 0.5,
+                0.5, 0.5, 0.5,
+                -0.5, 0.5, 0.5,
+                // Hinten
+                -0.5, -0.5, -0.5,
+                0.5, -0.5, -0.5,
+                0.5, 0.5, -0.5,
+                -0.5, 0.5, -0.5,
+            ];
             
-            let color;
-            switch(type) {
-                case 'dirt':
-                    color = '#8B4513';
-                    break;
-                case 'grass':
-                    color = '#228B22';
-                    break;
-                case 'wood':
-                    color = '#654321';
-                    break;
-                case 'leaves':
-                    color = '#32CD32';
-                    break;
-                default:
-                    color = '#888';
-            }
+            const colors = [
+                // Vorne - Grün
+                0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
+                // Hinten - Rot
+                1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+                // Oben - Blau
+                0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+                // Unten - Gelb
+                1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+                // Rechts - Cyan
+                0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+                // Links - Magenta
+                1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+            ];
             
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const screenX = centerX + ix;
-            const screenY = centerY + iy;
+            const indices = [
+                0, 1, 2, 0, 2, 3, // Vorne
+                4, 6, 5, 4, 7, 6, // Hinten
+                4, 5, 1, 4, 1, 0, // Unten
+                3, 2, 6, 3, 6, 7, // Oben
+                5, 6, 2, 5, 2, 1, // Rechts
+                4, 0, 3, 4, 3, 7  // Links
+            ];
             
-            const blockSize = 10;
-            
-            if (screenX > -blockSize * 2 && screenX < canvas.width + blockSize * 2 &&
-                screenY > -blockSize * 2 && screenY < canvas.height + blockSize * 2) {
-                
-                ctx.fillStyle = color;
-                ctx.fillRect(screenX - blockSize/2, screenY - blockSize/2, blockSize, blockSize);
-                
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(screenX - blockSize/2, screenY - blockSize/2, blockSize, blockSize);
-            }
+            return { vertices, colors, indices };
         }
+        
+        const cubeData = createCube();
+        
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeData.vertices), gl.STATIC_DRAW);
+        
+        const colorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeData.colors), gl.STATIC_DRAW);
+        
+        const indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeData.indices), gl.STATIC_DRAW);
         
         // Input
         const keys = {};
@@ -283,105 +418,122 @@
             keys[e.key.toLowerCase()] = false;
         });
         
-        let mouseDown = false;
-        window.addEventListener('mousedown', () => {
-            mouseDown = true;
-        });
-        window.addEventListener('mouseup', () => {
-            mouseDown = false;
-        });
         window.addEventListener('mousemove', (e) => {
-            player.yaw += e.movementX * 0.01;
-            player.pitch += e.movementY * 0.01;
+            if (document.pointerLockElement) {
+                player.yaw += e.movementX * 0.005;
+                player.pitch -= e.movementY * 0.005;
+                player.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, player.pitch));
+            }
         });
         
-        // Spieler aktualisieren
+        canvas.addEventListener('click', () => {
+            canvas.requestPointerLock();
+        });
+        
+        // Spieler-Bewegung
         function updatePlayer() {
-            const speed = 0.5;
+            const speed = 0.2;
+            const forward = [Math.sin(player.yaw), 0, Math.cos(player.yaw)];
+            const right = [Math.cos(player.yaw), 0, -Math.sin(player.yaw)];
+            
             if (keys['w']) {
-                player.x += Math.cos(player.yaw) * speed;
-                player.z += Math.sin(player.yaw) * speed;
+                player.x += forward[0] * speed;
+                player.z += forward[2] * speed;
             }
             if (keys['s']) {
-                player.x -= Math.cos(player.yaw) * speed;
-                player.z -= Math.sin(player.yaw) * speed;
+                player.x -= forward[0] * speed;
+                player.z -= forward[2] * speed;
             }
             if (keys['a']) {
-                player.x += Math.cos(player.yaw - Math.PI / 2) * speed;
-                player.z += Math.sin(player.yaw - Math.PI / 2) * speed;
+                player.x -= right[0] * speed;
+                player.z -= right[2] * speed;
             }
             if (keys['d']) {
-                player.x += Math.cos(player.yaw + Math.PI / 2) * speed;
-                player.z += Math.sin(player.yaw + Math.PI / 2) * speed;
+                player.x += right[0] * speed;
+                player.z += right[2] * speed;
             }
             
             if (keys[' '] && player.onGround) {
-                player.vy = 1;
+                player.vy = 0.3;
                 player.onGround = false;
             }
             
-            player.vy -= 0.05;
+            player.vy -= 0.02;
             player.y += player.vy;
             
-            if (player.y <= 22) {
-                player.y = 22;
+            if (player.y < 2) {
+                player.y = 2;
                 player.vy = 0;
                 player.onGround = true;
             }
+            
+            // Koordinaten aktualisieren
+            document.getElementById('coords').textContent = 
+                `Position: ${Math.round(player.x)}, ${Math.round(player.y)}, ${Math.round(player.z)}`;
         }
         
-        // Spiel-Loop
-        function gameLoop() {
-            ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Rendering
+        function render() {
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             
             updatePlayer();
+            updateInventoryUI();
             
-            // Katzen aktualisieren
-            catMobs.forEach(cat => {
-                cat.update();
-            });
+            // Matrizen
+            const projection = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
             
-            // Blöcke sortieren
-            blocks.sort((a, b) => {
-                const distA = Math.hypot(a.x - player.x, a.z - player.z);
-                const distB = Math.hypot(b.x - player.x, b.z - player.z);
-                return distB - distA;
-            });
+            const eye = [player.x, player.y, player.z];
+            const forward = [Math.sin(player.yaw), Math.tan(player.pitch), Math.cos(player.yaw)];
+            const center = [
+                eye[0] + forward[0],
+                eye[1] + forward[1],
+                eye[2] + forward[2]
+            ];
+            const up = [0, 1, 0];
+            const view = mat4LookAt(eye, center, up);
             
             // Blöcke zeichnen
             blocks.forEach(block => {
-                drawBlock(block.x, block.y, block.z, block.type);
+                const model = mat4Identity();
+                model[12] = block.x;
+                model[13] = block.y;
+                model[14] = block.z;
+                
+                const posLocation = gl.getAttribLocation(program, 'position');
+                const colorLocation = gl.getAttribLocation(program, 'color');
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.vertexAttribPointer(posLocation, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(posLocation);
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+                gl.vertexAttribPointer(colorLocation, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(colorLocation);
+                
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+                
+                const projLoc = gl.getUniformLocation(program, 'projection');
+                const viewLoc = gl.getUniformLocation(program, 'view');
+                const modelLoc = gl.getUniformLocation(program, 'model');
+                
+                gl.uniformMatrix4fv(projLoc, false, projection);
+                gl.uniformMatrix4fv(viewLoc, false, view);
+                gl.uniformMatrix4fv(modelLoc, false, model);
+                
+                gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
             });
             
-            // Katzen zeichnen
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            catMobs.forEach(cat => {
-                cat.draw(ctx, centerX, centerY);
-            });
-            
-            // Spieler-Crosshair
-            ctx.fillStyle = '#FF0000';
-            ctx.fillRect(canvas.width / 2 - 2, canvas.height / 2 - 10, 4, 20);
-            ctx.fillRect(canvas.width / 2 - 10, canvas.height / 2 - 2, 20, 4);
-            
-            // Stats aktualisieren
-            document.getElementById('catCount').textContent = catMobs.length;
-            document.getElementById('blockCount').textContent = blocks.length;
-            
-            requestAnimationFrame(gameLoop);
+            requestAnimationFrame(render);
         }
         
-        // Initialisierung
-        window.addEventListener('load', () => {
-            generateTerrain();
-            gameLoop();
-        });
+        generateTerrain();
+        updateHUD();
+        render();
         
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
         });
     </script>
 </body>
