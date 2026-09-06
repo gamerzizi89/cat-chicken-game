@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Minecraft mit Katzen-Mobs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100%;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+            background: #87CEEB;
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #info h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #00ff00;
+        }
+        
+        #stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h1>🐱 MINECRAFT MIT KATZEN-MOBS 🐱</h1>
+        <p>WASD - Bewegen</p>
+        <p>SPACE - Springen</p>
+        <p>Maus - Schauen</p>
+        <p>Klick - Blöcke platzieren/entfernen</p>
+    </div>
+    <div id="stats">
+        <p>Katzen-Mobs: <span id="catCount">0</span></p>
+        <p>Blöcke: <span id="blockCount">0</span></p>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // 3D Minecraft mit Katzen-Mobs
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Spieler
+        const player = {
+            x: 50,
+            y: 50,
+            z: 50,
+            yaw: 0,
+            pitch: 0,
+            vx: 0,
+            vy: 0,
+            vz: 0,
+            onGround: false
+        };
+        
+        // Welt - Blöcke
+        let blocks = [];
+        let catMobs = [];
+        
+        // Katzen-Mob Klasse
+        class CatMob {
+            constructor(x, y, z) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vz = (Math.random() - 0.5) * 0.3;
+                this.vy = 0;
+                this.onGround = false;
+                this.walkCounter = 0;
+                this.direction = Math.random() * Math.PI * 2;
+            }
+            
+            update() {
+                // Bewegung
+                this.walkCounter++;
+                if (this.walkCounter > 60) {
+                    this.direction = Math.random() * Math.PI * 2;
+                    this.walkCounter = 0;
+                }
+                
+                this.vx = Math.cos(this.direction) * 0.2;
+                this.vz = Math.sin(this.direction) * 0.2;
+                
+                // Position aktualisieren
+                this.x += this.vx;
+                this.z += this.vz;
+                
+                // Gravitation
+                this.vy -= 0.05;
+                this.y += this.vy;
+                
+                // Bodenerkennung
+                if (this.y <= 22) {
+                    this.y = 22;
+                    this.vy = 0;
+                    this.onGround = true;
+                }
+                
+                // Grenzen
+                if (this.x < 0) this.x = 100;
+                if (this.x > 100) this.x = 0;
+                if (this.z < 0) this.z = 100;
+                if (this.z > 100) this.z = 0;
+                
+                // Manchmal springen
+                if (Math.random() > 0.95 && this.onGround) {
+                    this.vy = 1;
+                    this.onGround = false;
+                }
+            }
+            
+            draw(ctx, centerX, centerY) {
+                // Isometrische Projektion
+                const scale = 1;
+                const ix = (this.x - this.z) * scale;
+                const iy = (this.y - (this.x + this.z) * 0.5) * scale;
+                
+                const screenX = centerX + ix;
+                const screenY = centerY + iy;
+                
+                // Katze zeichnen
+                ctx.font = 'bold 30px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Schatten
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(screenX - 15, screenY + 15, 30, 5);
+                
+                // Katze
+                ctx.fillText('🐱', screenX, screenY);
+            }
+        }
+        
+        // Terrain generieren
+        function generateTerrain() {
+            for (let x = 0; x < 50; x++) {
+                for (let z = 0; z < 50; z++) {
+                    // Boden
+                    blocks.push({
+                        x: x * 2,
+                        y: 20,
+                        z: z * 2,
+                        type: 'dirt'
+                    });
+                    
+                    // Gras
+                    if (Math.random() > 0.8) {
+                        blocks.push({
+                            x: x * 2,
+                            y: 22,
+                            z: z * 2,
+                            type: 'grass'
+                        });
+                    }
+                    
+                    // Bäume
+                    if (Math.random() > 0.95) {
+                        for (let i = 0; i < 4; i++) {
+                            blocks.push({
+                                x: x * 2,
+                                y: 22 + i * 2,
+                                z: z * 2,
+                                type: 'wood'
+                            });
+                        }
+                        for (let bx = -2; bx <= 2; bx++) {
+                            for (let bz = -2; bz <= 2; bz++) {
+                                for (let by = 0; by < 3; by++) {
+                                    blocks.push({
+                                        x: x * 2 + bx * 2,
+                                        y: 26 + by * 2,
+                                        z: z * 2 + bz * 2,
+                                        type: 'leaves'
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Katzen-Mobs spawnen
+            for (let i = 0; i < 5; i++) {
+                catMobs.push(new CatMob(
+                    Math.random() * 100,
+                    25,
+                    Math.random() * 100
+                ));
+            }
+        }
+        
+        // Block zeichnen
+        function drawBlock(x, y, z, type) {
+            const scale = 1;
+            const ix = (x - z) * scale;
+            const iy = (y - (x + z) * 0.5) * scale;
+            
+            let color;
+            switch(type) {
+                case 'dirt':
+                    color = '#8B4513';
+                    break;
+                case 'grass':
+                    color = '#228B22';
+                    break;
+                case 'wood':
+                    color = '#654321';
+                    break;
+                case 'leaves':
+                    color = '#32CD32';
+                    break;
+                default:
+                    color = '#888';
+            }
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const screenX = centerX + ix;
+            const screenY = centerY + iy;
+            
+            const blockSize = 10;
+            
+            if (screenX > -blockSize * 2 && screenX < canvas.width + blockSize * 2 &&
+                screenY > -blockSize * 2 && screenY < canvas.height + blockSize * 2) {
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(screenX - blockSize/2, screenY - blockSize/2, blockSize, blockSize);
+                
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(screenX - blockSize/2, screenY - blockSize/2, blockSize, blockSize);
+            }
+        }
+        
+        // Input
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+        
+        let mouseDown = false;
+        window.addEventListener('mousedown', () => {
+            mouseDown = true;
+        });
+        window.addEventListener('mouseup', () => {
+            mouseDown = false;
+        });
+        window.addEventListener('mousemove', (e) => {
+            player.yaw += e.movementX * 0.01;
+            player.pitch += e.movementY * 0.01;
+        });
+        
+        // Spieler aktualisieren
+        function updatePlayer() {
+            const speed = 0.5;
+            if (keys['w']) {
+                player.x += Math.cos(player.yaw) * speed;
+                player.z += Math.sin(player.yaw) * speed;
+            }
+            if (keys['s']) {
+                player.x -= Math.cos(player.yaw) * speed;
+                player.z -= Math.sin(player.yaw) * speed;
+            }
+            if (keys['a']) {
+                player.x += Math.cos(player.yaw - Math.PI / 2) * speed;
+                player.z += Math.sin(player.yaw - Math.PI / 2) * speed;
+            }
+            if (keys['d']) {
+                player.x += Math.cos(player.yaw + Math.PI / 2) * speed;
+                player.z += Math.sin(player.yaw + Math.PI / 2) * speed;
+            }
+            
+            if (keys[' '] && player.onGround) {
+                player.vy = 1;
+                player.onGround = false;
+            }
+            
+            player.vy -= 0.05;
+            player.y += player.vy;
+            
+            if (player.y <= 22) {
+                player.y = 22;
+                player.vy = 0;
+                player.onGround = true;
+            }
+        }
+        
+        // Spiel-Loop
+        function gameLoop() {
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            updatePlayer();
+            
+            // Katzen aktualisieren
+            catMobs.forEach(cat => {
+                cat.update();
+            });
+            
+            // Blöcke sortieren
+            blocks.sort((a, b) => {
+                const distA = Math.hypot(a.x - player.x, a.z - player.z);
+                const distB = Math.hypot(b.x - player.x, b.z - player.z);
+                return distB - distA;
+            });
+            
+            // Blöcke zeichnen
+            blocks.forEach(block => {
+                drawBlock(block.x, block.y, block.z, block.type);
+            });
+            
+            // Katzen zeichnen
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            catMobs.forEach(cat => {
+                cat.draw(ctx, centerX, centerY);
+            });
+            
+            // Spieler-Crosshair
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(canvas.width / 2 - 2, canvas.height / 2 - 10, 4, 20);
+            ctx.fillRect(canvas.width / 2 - 10, canvas.height / 2 - 2, 20, 4);
+            
+            // Stats aktualisieren
+            document.getElementById('catCount').textContent = catMobs.length;
+            document.getElementById('blockCount').textContent = blocks.length;
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Initialisierung
+        window.addEventListener('load', () => {
+            generateTerrain();
+            gameLoop();
+        });
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
